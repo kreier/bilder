@@ -32,7 +32,7 @@ current_directory = os.getcwd()
 folders_info = list_folders_files_and_size(current_directory)
 
 csv_file = "folder_info.csv"
-with open(csv_file, mode='w', newline='') as file:
+with open(csv_file, mode='w', newline='', encoding='utf-8') as file:
     writer = csv.writer(file)
     writer.writerow(["Folder", "Subfolder Count", "File Count", "Total Size", "Total Size (Bytes)"])
     for folder, info in folders_info.items():
