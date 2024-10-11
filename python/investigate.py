@@ -1,4 +1,5 @@
 import os
+import csv
 
 def list_folders_files_and_size(directory):
     folders_info = {}
@@ -29,7 +30,12 @@ def size_format(size):
 current_directory = os.getcwd()
 folders_info = list_folders_files_and_size(current_directory)
 
-print("Folders, their subfolder counts, file counts, and total sizes in the current directory:")
-for folder, info in folders_info.items():
-    size_str = size_format(info["total_size"])
-    print(f"{folder}: {info['subfolder_count']} subfolders, {info['file_count']} files, {size_str}")
+csv_file = "folder_info.csv"
+with open(csv_file, mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(["Folder", "Subfolder Count", "File Count", "Total Size"])
+    for folder, info in folders_info.items():
+        size_str = size_format(info["total_size"])
+        writer.writerow([folder, info['subfolder_count'], info['file_count'], size_str])
+
+print(f"Results exported to {csv_file}")
