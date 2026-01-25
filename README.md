@@ -28,3 +28,23 @@ Now in Phnom Penh three more requirements emerged:
 Each csv could there fore have date (4 digits), event and folder, files, subfolders
 
 While at it, the `/photo` should be read only, and be populated with copy/paste from `/sCloud/xchange/bilder` folder 
+
+## Diskstation DS216+ II
+
+Since my Diskstation DS215j was not easily accessed over the internet and 10,000 km away I started with a local NAS as Diskstation DS216+II with 8 GB RAM in 2017. By 2026 I had collected 71225 pictures (149.65 GByte):
+
+![pictures overview](docs/2026-01-25_ds216.svg)
+
+Now let's organize them!
+
+## iCloud
+
+Like the best camera is the one you have with you, the best pictures are the ones you can share. And in many cases that is your phone with you. In January 2026 I discovered that I can access my iCloud photo library with python. Now I can automate my image organizing project, if I ever find the time to write these scripts. 
+
+Current count: 28,548 items
+
+## Google Photos
+
+Since October 2013 I started using my second phone (Android) not just for teaching but also to take photos. Should also be consilidated with the Diskstation summary.
+
+The Dashboard shows more than 4000 photos.
