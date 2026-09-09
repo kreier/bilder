@@ -1,50 +1,187 @@
 # Bilder
 
-![GitHub License](https://img.shields.io/github/license/kreier/bilder)
-![GitHub Release](https://img.shields.io/github/v/release/kreier/bilder)
+Bilder is a self-hosted photo archive and management system designed to organize, catalog, preserve, and manage a large personal photo collection.
 
-Support tool to organize and categorize my image collection.
+The long-term goal is to provide a single, searchable catalog of photographs while keeping the original files under the user's control on a NAS.
 
-## Rationale
+## Status
 
-I store my images sorted by years, with a folder for each year. Inside these folders there are subfolders for each event. The name style of these subfolders is `MMDD_Description_of_the_Event`. The pictures of a visit to Shanghai on the first of August in 2024 would therefore be in the folder `/2024/0801_Shanghai/`.
+**Early development — architecture and design phase**
 
-The goal for the `investigate.py` app is therefore to scan the folders with the years, and create a `.csv` file with colums for all folders, the number of subfolders, number of files, and total size of the folder.
+The current repository is being transitioned from an older collection of photo-analysis and folder-summary tools to a new database-backed photo management system.
 
-A later `investigate_events.py` will be more verbose about the events. Since the folder name structure is defined the events can be named (with removing the _ characters) and the correct month and day of the event.
+The previous implementation has been moved to [`archive/`](archive/) for historical reference. It is no longer the active system.
 
-## October 2024
+No production system or public release of the new application exists yet.
 
-In Shanghai I had several ideas, and made it actually work later in Saigon. The `csv` file was created with the intended informations.
+## Goals
 
-## October 2025
+The new Bilder system is intended to:
 
-Now in Phnom Penh three more requirements emerged:
+- maintain a central catalog of photographs
+- keep the NAS as the canonical storage location for originals
+- preserve file history and provenance
+- identify exact duplicate files
+- identify visually similar photographs and different versions of the same photograph
+- collect and preserve metadata such as EXIF information
+- generate thumbnails for efficient browsing
+- provide a web-based interface
+- connect external photo sources such as Apple Photos/iCloud Photos and Google Drive
+- distinguish canonical files from copies held by external sources
+- provide safe, reversible workflows for potentially destructive operations
+- maintain enough information in the files and metadata to assist recovery if the database is lost
 
-- Have it run automaically periodically (once a month) on the diskstation to have an updated overview automatically
-- Combine all the .csv files into one larger `.xlsx` file with Tabs for each year, and probably one "overview" tab
-- Check folder names to have `underscore_between_the_text` for compatibility, but have the csv file with a column just Text
+## Planned architecture
 
-Each csv could there fore have date (4 digits), event and folder, files, subfolders
+The planned system consists of several components:
 
-While at it, the `/photo` should be read only, and be populated with copy/paste from `/sCloud/xchange/bilder` folder 
+```text
+                         ┌─────────────────┐
+                         │     Browser     │
+                         └────────┬────────┘
+                                  │
+                               HTTP/API
+                                  │
+                         ┌────────▼────────┐
+                         │  Bilder Server  │
+                         │  Raspberry Pi   │
+                         ├─────────────────┤
+                         │ FastAPI         │
+                         │ SQLite          │
+                         │ Workers         │
+                         └───────┬─────────┘
+                                 │
+                 ┌───────────────┼────────────────┐
+                 │               │                │
+          ┌──────▼──────┐ ┌─────▼─────┐  ┌──────▼──────┐
+          │     NAS     │ │ Thumbnails│  │   Sources   │
+          │  Canonical  │ │           │  │   Catalog   │
+          │   Library   │ │           │  │             │
+          └─────────────┘ └───────────┘  └─────────────┘
 
-## Diskstation DS216+ II
+                         ┌─────────────────┐
+                         │   macOS Bridge  │
+                         └────────┬────────┘
+                                  │
+                              PhotoKit
+                                  │
+                         ┌────────▼────────┐
+                         │  Apple Photos   │
+                         │  / iCloud       │
+                         └─────────────────┘
+```
 
-Since my Diskstation DS215j was not easily accessed over the internet and 10,000 km away I started with a local NAS as Diskstation DS216+II with 8 GB RAM in 2017. By 2026 I had collected 71225 pictures (149.65 GByte):
+This architecture is a design target. Components will be introduced incrementally rather than implemented all at once.
 
-![pictures overview](docs/2026-01-25_ds216.svg)
+## Photo identity
 
-Now let's organize them!
+Bilder deliberately separates several concepts of identity.
 
-## iCloud
+### Photo ID
 
-Like the best camera is the one you have with you, the best pictures are the ones you can share. And in many cases that is your phone with you. In January 2026 I discovered that I can access my iCloud photo library with python. Now I can automate my image organizing project, if I ever find the time to write these scripts. 
+Every logical photograph will have a stable internal `photo_id`.
 
-Current count: 28,548 items
+This identifies the photograph as a logical entity and does **not** identify a particular file.
 
-## Google Photos
+### File version
 
-Since October 2013 I started using my second phone (Android) not just for teaching but also to take photos. Should also be consilidated with the Diskstation summary.
+Every physical file is a file version.
 
-The Dashboard shows more than 4000 photos.
+A file version can be identified by its SHA-256 hash, together with other information such as size and provenance.
+
+Changing metadata or otherwise modifying a file may therefore create a new file version with a different SHA-256 hash while remaining associated with the same logical `photo_id`.
+
+### Visual identity
+
+Perceptual hashes such as pHash may be used to identify visually similar files, including resized, recompressed, or edited versions.
+
+These identities serve different purposes and must not be conflated.
+
+## External sources
+
+External locations such as:
+
+- Apple Photos / iCloud Photos
+- Google Drive
+- phone backups
+- camera or SD cards
+- other filesystem locations
+
+will be treated as sources containing copies or versions of photographs.
+
+The NAS is intended to remain the canonical archive.
+
+An external copy being identified as a duplicate does not automatically mean that it will be deleted.
+
+## Safety
+
+Bilder is designed around the principle that potentially destructive operations must be explicit and traceable.
+
+The intended workflow is:
+
+```text
+discover
+   ↓
+compare
+   ↓
+recommend
+   ↓
+user approval
+   ↓
+quarantine
+   ↓
+verify
+   ↓
+optional permanent deletion
+```
+
+The system should never silently delete photographs merely because they appear to be duplicates.
+
+## Development approach
+
+Development will proceed in small, independently testable steps.
+
+The planned progression is approximately:
+
+1. Architecture and documentation
+2. Database schema
+3. Read-only filesystem scanner
+4. File hashes and metadata catalog
+5. Thumbnail generation
+6. Basic web interface
+7. Duplicate detection
+8. Safe file operations and quarantine
+9. macOS bridge
+10. Apple Photos / iCloud integration
+11. Google Drive integration
+
+The order may change as development progresses.
+
+## Historical implementation
+
+The previous Bilder implementation contained scripts and tools for working with photo collections, including Google Photos, iCloud exports, NAS data, and folder statistics.
+
+That implementation is preserved under [`archive/`](archive/) but is no longer the basis of the new system.
+
+The last release of the previous system was `v26.02`.
+
+## Repository structure
+
+The repository is intentionally being developed incrementally.
+
+```text
+Bilder/
+├── archive/          # Previous implementation
+├── docs/             # Architecture and development documentation
+├── README.md
+├── AGENTS.md
+├── CHANGELOG.md
+├── SECURITY.md
+└── CONTRIBUTING.md
+```
+
+Additional application directories will be introduced when the corresponding implementation work begins.
+
+## License
+
+License information will be added when the project's distribution model has been decided.
