@@ -114,7 +114,8 @@ The database contains the catalog and system state, rather than the actual photo
 
 It will eventually represent concepts such as:
 
-- logical photographs
+- logical photographic captures
+- related media files
 - file versions
 - sources
 - source copies
@@ -260,13 +261,16 @@ Scanner
   ├── filename/path
   ├── file size
   ├── timestamps
+  ├── media type / format
   ├── metadata
   ├── SHA-256
-  └── visual hash
+  └── visual fingerprint
   │
   ▼
 Bilder Database
 ```
+
+Format-specific content fingerprints may later be added where they can be calculated reliably. They should not be assumed to work identically across JPEG, PNG, HEIC, RAW, video, or other formats.
 
 The scanner records what it finds.
 
@@ -347,27 +351,63 @@ relationship.
 
 ## Identity and File Versions
 
-The architecture separates four concepts:
+The architecture distinguishes between the logical photographic capture, its media representations, and the physical versions of those representations.
 
-| Concept | Purpose |
-|---|---|
-| `photo_id` | Stable logical identity of a photograph |
-| `file_version_id` | Identity of a particular stored file version |
-| SHA-256 | Exact byte-level identity of a file |
-| pHash | Approximate visual similarity |
+Conceptually:
+
+```text
+Photo / Capture
+      │
+      ├── MediaFile: still image
+      │       ├── FileVersion A
+      │       └── FileVersion B
+      │
+      └── MediaFile: motion companion
+              └── FileVersion C
+```
+
+A `photo_id` identifies the logical photographic capture. One capture may therefore contain multiple related media files.
+
+Examples include:
+
+- an iPhone Live Photo still plus its companion MP4
+- a RAW original plus a JPEG derived from it
+- an original image plus an edited representation
+- alternate representations of the same capture
+
+Relationships between media files should be explicit. Useful conceptual relationship types include:
+
+- companion
+- derived
+- edited
+- alternate
+
+The exact database tables and relationship model are intentionally deferred to the data-model design stage.
+
+The current identity concepts are:
+
+| Concept           | Purpose                                                  |
+| ----------------- | -------------------------------------------------------- |
+| `photo_id`        | Stable logical identity of a photographic capture/event  |
+| Media file        | A logical media representation belonging to that capture |
+| `file_version_id` | Identity of a particular stored version of a media file  |
+| SHA-256           | Exact byte-level identity of a file version              |
+| pHash             | Approximate visual similarity                            |
 
 A source can additionally provide its own identifier.
 
 For example:
 
+
 ```text
-photo_id:        logical photograph
+photo_id: logical capture
      │
-     ├── file_version A
-     │      └── SHA-256 A
+     ├── still media file
+     │      ├── original file version
+     │      └── metadata-modified file version
      │
-     ├── file_version B
-     │      └── SHA-256 B
+     ├── motion companion media file
+     │      └── MP4 file version
      │
      ├── NAS canonical copy
      │
@@ -382,6 +422,8 @@ Changing metadata can create a different file hash while preserving the same log
 ## Metadata and Identity
 
 Original files should initially be preserved without modification.
+
+The database is the authoritative metadata catalog for Bilder. Embedded metadata is an optional synchronization and portability mechanism, and its capabilities depend on the file format.
 
 If Bilder later embeds its own `photo_id` into XMP or another supported metadata location, the modified file becomes a new file version.
 
@@ -406,6 +448,7 @@ The logical photograph remains the same:
 ```text
 photo_id = X
 ```
+Not every media format supports the same metadata mechanisms. In particular, Bilder must not depend on embedded EXIF/XMP being available for every file type.
 
 This provides a useful distinction between logical identity and physical file content.
 
