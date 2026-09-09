@@ -42,22 +42,35 @@ A copy existing in an external source does not by itself mean that it should be 
 
 ## Photo Identity
 
-Bilder distinguishes between a **logical photograph** and a **physical file**.
+Bilder distinguishes between a **logical photographic capture** and its **physical media representations**.
 
-A logical photograph has a stable `photo_id`. This identifier represents the photograph as an entity within Bilder and should remain stable across different file versions.
+A logical photographic capture has a stable `photo_id`. This identifier represents the capture or photographic event as an entity within Bilder and should remain stable across different file versions and related media representations.
 
-A physical file is represented separately as a file version. Its SHA-256 hash identifies its exact byte content.
+A single `photo_id` may therefore correspond to more than one media file. For example, an iPhone Live Photo may consist of a still image and a short companion video, while a RAW capture may have both its original RAW file and a derived JPEG. These files are related representations of the same capture rather than necessarily being separate photographs.
 
-This distinction is important because the same photograph may exist as:
+The relationships between related media should be explicit. Examples include:
+
+- `companion` — such as a Live Photo still and its motion video
+- `derived` — such as a JPEG rendered from a RAW file
+- `edited` — a modified representation of the same capture
+- `alternate` — another representation of the same capture
+
+The exact database model for these relationships is intentionally deferred to the data-model design stage.
+
+A physical file is represented separately from the logical photograph. A particular stored state of that file has its own file identity and SHA-256 hash, which identifies its exact byte content.
+
+This distinction is important because the same capture may exist as:
 
 - an untouched original
 - a copy with different metadata
 - a resized version
 - a recompressed version
 - an edited version
+- a derived representation
+- a companion media file
 - a file exported from another application
 
-These files may have different SHA-256 hashes while still representing the same underlying photograph.
+These files may have different SHA-256 hashes while still belonging to the same logical photographic capture.
 
 Visual similarity mechanisms such as perceptual hashing (`pHash`) may be used to help identify these relationships.
 
@@ -73,9 +86,9 @@ For each file version, the system should be able to record information such as:
 - when it was discovered
 - its exact content hash
 - relevant metadata
-- which logical photograph it belongs to
+- which logical photographic capture it belongs to
 - whether it is canonical or an external copy
-- relationships to other versions
+- relationships to other media and versions
 - operations performed on it
 
 This allows Bilder to answer questions such as:
@@ -104,6 +117,8 @@ Potential metadata includes:
 - software and processing information
 - file timestamps
 - embedded metadata such as EXIF and XMP
+
+The **database is the authoritative metadata catalog** for Bilder. Embedded metadata is an optional synchronization and portability mechanism, and its capabilities depend on the file format. Different formats may support different metadata mechanisms, so Bilder must not depend on every file being able to store the same information.
 
 The system should distinguish metadata belonging to the original file from metadata generated or maintained by Bilder.
 
@@ -159,7 +174,7 @@ A source can contain:
 - files with modified metadata
 - files that do not exist in the canonical archive
 
-The system should therefore model the relationship between a photograph and its copies across sources.
+The system should therefore model the relationship between a photographic capture and its copies across sources.
 
 This is particularly important for Apple Photos/iCloud Photos and Google Drive, where copies may exist independently of the NAS archive.
 
