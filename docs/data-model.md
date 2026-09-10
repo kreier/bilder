@@ -423,7 +423,7 @@ Historical sources should not disappear merely because they are no longer connec
 
 ## Purpose
 
-A SourceCopy represents one physical occurrence of a FileVersion at a Source.
+SourceCopy represents a physical location of a file within a Source. It points to the FileVersion currently observed at that location. Historical observations of different FileVersions at the same location are retained through FileObservation.
 
 Example:
 
@@ -454,7 +454,7 @@ The exact implementation may evolve.
 
 ## Path Changes
 
-Moving a file should not create a new FileVersion if the bytes remain unchanged.
+A path change does not create a new FileVersion. The SourceCopy may later represent the new path, while FileObservation preserves the historical evidence of where and when a FileVersion was observed.
 
 For example:
 
@@ -519,6 +519,8 @@ scanner encountered an error
 
 They also preserve the history of discovery.
 
+FileObservation is the historical evidence connecting a ScanSession with what was physically observed at a particular Source and path. It therefore provides historical information that is not retained by the current SourceCopy alone.
+
 ---
 
 # 10. ScanSession
@@ -565,6 +567,8 @@ Possible values:
 - `deep`
 
 Deep analysis may also be represented as separate jobs rather than a ScanSession.
+
+An incomplete ScanSession must never be used to conclude that files absent from that scan have disappeared from the Source.
 
 ---
 
@@ -1791,7 +1795,27 @@ These are implementation decisions, not part of the conceptual identity model.
 
 ---
 
-# 44. Initial Entity Checklist
+# 44 Phase-1 Implementation Boundary
+
+**Phase 1 currently implements only the filesystem discovery and exact-file identity layer:**
+
+`Source → ScanSession → FileObservation → FileVersion → SourceCopy`
+
+The Phase-1 scanner records filesystem files, their observations during scans, SHA-256 identity, and the current physical source/path relationship.
+
+`Photo` and `MediaFile` identification are deliberately not implemented yet. The scanner does not attempt to determine whether two files represent the same real-world photograph.
+
+Metadata extraction, preservation workflows, missing-file reconciliation, duplicate analysis, faces, people, tags, collections, proposals, decisions, and operations are also deferred.
+
+Phase 1 uses the resolved filesystem scan root as the source identity. Persistent device or service identity is a later implementation concern.
+
+The Phase-1 `SourceCopy` represents the **current physical location** of a file within a Source. If the contents at that path change, the SourceCopy points to the new FileVersion. Historical observations of previous versions remain recorded through `FileObservation`.
+
+A completed scan is required before Bilder can conclude that a previously observed path is missing. Phase 1 does not yet perform missing-file reconciliation.
+
+---
+
+# 45. Initial Entity Checklist
 
 The initial conceptual entity set is:
 
@@ -1850,7 +1874,7 @@ This list is conceptual. Some entities may later be represented as relationships
 
 ---
 
-# 45. Intended Evolution
+# 46. Intended Evolution
 
 The data model should evolve in this order:
 
@@ -1878,7 +1902,7 @@ The concepts should define the schema.
 
 ---
 
-# 46. Summary
+# 47. Summary
 
 The central model is:
 
