@@ -5,9 +5,9 @@ from bilder.database import (
     count_rows,
     create_file_observation,
     create_scan_session,
-    create_source,
     finish_scan_session,
     get_or_create_file_version,
+    get_or_create_source,
     get_or_create_source_copy,
     initialize_database,
 )
@@ -39,7 +39,7 @@ def test_create_source_and_scan_session(tmp_path):
     try:
         initialize_database(connection)
 
-        source_id = create_source(
+        source_id = get_or_create_source(
             connection,
             name="Test source",
         )
@@ -109,7 +109,7 @@ def test_source_copy_is_reused(tmp_path):
     try:
         initialize_database(connection)
 
-        source_id = create_source(
+        source_id = get_or_create_source(
             connection,
             name="Test source",
         )
@@ -123,12 +123,14 @@ def test_source_copy_is_reused(tmp_path):
         first_id = get_or_create_source_copy(
             connection,
             source_id,
+            "photos/test.jpg",
             file_version_id,
         )
 
         second_id = get_or_create_source_copy(
             connection,
             source_id,
+            "photos/test.jpg",
             file_version_id,
         )
 
@@ -147,7 +149,7 @@ def test_file_observation(tmp_path):
     try:
         initialize_database(connection)
 
-        source_id = create_source(
+        source_id = get_or_create_source(
             connection,
             name="Test source",
         )

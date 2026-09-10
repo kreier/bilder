@@ -175,7 +175,50 @@ def test_scan_detects_changed_file(tmp_path):
             "file_version",
         ) == 2
 
-        # Both versions have been observed at the same source.
+        # The same physical source copy now points to the latest version.
+        assert count_rows(
+            connection,
+            "source_copy",
+        ) == 1
+
+    finally:
+        connection.close()
+
+def test_same_file_version_at_two_paths_creates_two_source_copies(tmp_path):
+    """Identical bytes at two paths are one FileVersion but two SourceCopies."""
+
+    source = tmp_path / "source"
+    source.mkdir()
+
+    data = b"fake JPEG data"
+
+    (source / "photo1.jpg").write_bytes(data)
+    (source / "photo2.jpg").write_bytes(data)
+
+    database_path = tmp_path / "bilder.db"
+
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        # Two physical files contain the same bytes.
+        assert count_rows(
+            connection,
+            "file_observation",
+        ) == 2
+
+        # But there is only one unique byte-level FileVersion.
+        assert count_rows(
+            connection,
+            "file_version",
+        ) == 1
+
+        # There should be two physical occurrences.
         assert count_rows(
             connection,
             "source_copy",

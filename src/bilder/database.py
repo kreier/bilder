@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +15,7 @@ CREATE TABLE IF NOT EXISTS source (
     id              INTEGER PRIMARY KEY,
     name            TEXT NOT NULL,
     source_type     TEXT NOT NULL,
-    identity        TEXT,
+    identity        TEXT UNIQUE,
     description     TEXT,
     created_at      TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     retired_at      TEXT
@@ -51,21 +52,22 @@ CREATE TABLE IF NOT EXISTS source_copy (
     id              INTEGER PRIMARY KEY,
     source_id       INTEGER NOT NULL,
     file_version_id INTEGER NOT NULL,
+    path            TEXT NOT NULL,
     first_seen_at   TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_seen_at    TEXT,
+    last_seen_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     state           TEXT NOT NULL DEFAULT 'present',
 
     FOREIGN KEY (source_id) REFERENCES source(id),
     FOREIGN KEY (file_version_id) REFERENCES file_version(id),
+
+    UNIQUE(source_id, path),
 
     CHECK (state IN (
         'present',
         'missing',
         'deleted',
         'unknown'
-    )),
-
-    UNIQUE (source_id, file_version_id)
+    ))
 );
 
 CREATE TABLE IF NOT EXISTS file_observation (
@@ -135,14 +137,26 @@ def initialize_database(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
-def create_source(
+def get_or_create_source(
     connection: sqlite3.Connection,
     name: str,
     source_type: str = "filesystem",
     identity: str | None = None,
     description: str | None = None,
 ) -> int:
-    """Create a source and return its database ID."""
+    """Get or create a source and return its database ID."""
+
+    row = connection.execute(
+        """
+        SELECT id
+        FROM source
+        WHERE identity = ?
+        """,
+        (identity,),
+    ).fetchone()
+
+    if row is not None:
+        return int(row["id"])
 
     cursor = connection.execute(
         """
@@ -154,7 +168,12 @@ def create_source(
         )
         VALUES (?, ?, ?, ?)
         """,
-        (name, source_type, identity, description),
+        (
+            name,
+            source_type,
+            identity,
+            description,
+        ),
     )
 
     connection.commit()
@@ -277,29 +296,33 @@ def get_or_create_file_version(
 def get_or_create_source_copy(
     connection: sqlite3.Connection,
     source_id: int,
+    path: str,
     file_version_id: int,
 ) -> int:
-    """Return the SourceCopy ID for a source/file-version pair."""
+    """Get or create a physical source copy and return its database ID."""
 
     row = connection.execute(
         """
         SELECT id
         FROM source_copy
         WHERE source_id = ?
-          AND file_version_id = ?
+          AND path = ?
         """,
-        (source_id, file_version_id),
+        (source_id, path),
     ).fetchone()
+
+    now = datetime.now(timezone.utc).isoformat()
 
     if row is not None:
         connection.execute(
             """
             UPDATE source_copy
-            SET last_seen_at = CURRENT_TIMESTAMP,
+            SET file_version_id = ?,
+                last_seen_at = ?,
                 state = 'present'
             WHERE id = ?
             """,
-            (row["id"],),
+            (file_version_id, now, row["id"]),
         )
         connection.commit()
         return int(row["id"])
@@ -309,19 +332,20 @@ def get_or_create_source_copy(
         INSERT INTO source_copy (
             source_id,
             file_version_id,
+            path,
             first_seen_at,
             last_seen_at,
             state
         )
-        VALUES (
-            ?,
-            ?,
-            CURRENT_TIMESTAMP,
-            CURRENT_TIMESTAMP,
-            'present'
-        )
+        VALUES (?, ?, ?, ?, ?, 'present')
         """,
-        (source_id, file_version_id),
+        (
+            source_id,
+            file_version_id,
+            path,
+            now,
+            now,
+        ),
     )
 
     connection.commit()

@@ -13,7 +13,7 @@ from .database import (
     connect,
     create_file_observation,
     create_scan_session,
-    create_source,
+    get_or_create_source,
     finish_scan_session,
     get_or_create_file_version,
     get_or_create_source_copy,
@@ -78,7 +78,7 @@ def scan(
     try:
         initialize_database(connection)
 
-        source_id = create_source(
+        source_id = get_or_create_source(
             connection,
             name=source_name,
             source_type="filesystem",
@@ -117,6 +117,7 @@ def scan(
                 get_or_create_source_copy(
                     connection,
                     source_id=source_id,
+                    path=str(relative_path),
                     file_version_id=file_version_id,
                 )
 
