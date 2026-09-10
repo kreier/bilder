@@ -409,3 +409,98 @@ def test_failed_scan_does_not_mark_existing_files_missing(
 
     finally:
         connection.close()
+
+def test_scan_detects_moved_file_as_missing_and_new_copy(
+    tmp_path,
+):
+    """A moved file keeps its FileVersion across the old and new paths."""
+
+    source = tmp_path / "source"
+    source.mkdir()
+
+    old_file = source / "old" / "photo.jpg"
+    old_file.parent.mkdir()
+
+    new_file = source / "new" / "photo.jpg"
+    new_file.parent.mkdir()
+
+    old_file.write_bytes(b"photo data")
+
+    database_path = tmp_path / "bilder.db"
+
+    # First scan: file exists at the old path.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                file_version_id
+            FROM source_copy
+            WHERE path = ?
+            """,
+            ("old/photo.jpg",),
+        ).fetchone()
+
+        original_file_version_id = row["file_version_id"]
+
+    finally:
+        connection.close()
+
+    # Move the file without changing its contents.
+    old_file.rename(new_file)
+
+    # Second scan: old path disappears, new path appears.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                path,
+                file_version_id,
+                state
+            FROM source_copy
+            WHERE file_version_id = ?
+            ORDER BY path
+            """,
+            (original_file_version_id,),
+        ).fetchall()
+
+        assert len(rows) == 2
+
+        assert rows[0]["path"] == "new/photo.jpg"
+        assert rows[0]["file_version_id"] == original_file_version_id
+        assert rows[0]["state"] == "present"
+
+        assert rows[1]["path"] == "old/photo.jpg"
+        assert rows[1]["file_version_id"] == original_file_version_id
+        assert rows[1]["state"] == "missing"
+
+        # Two scans, one observation for each location.
+        assert count_rows(
+            connection,
+            "file_observation",
+        ) == 2
+
+        # The move did not create a new FileVersion.
+        assert count_rows(
+            connection,
+            "file_version",
+        ) == 1
+
+    finally:
+        connection.close()
+
