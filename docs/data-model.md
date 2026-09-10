@@ -100,6 +100,8 @@ Machine-generated conclusions are proposals.
 
 User decisions are authoritative unless explicitly changed by the user.
 
+---
+
 # 2. Core Identity Model
 
 The central hierarchy is:
@@ -120,13 +122,15 @@ Photo
 
 The entities answer different questions:
 
-| Entity      | Question                                               |
-| ----------- | ------------------------------------------------------ |
-| Photo       | What real-world capture is this?                       |
-| MediaFile   | What media representation belongs to that capture?     |
-| FileVersion | What exact bytes constitute this representation?       |
-| SourceCopy  | Where does that exact version physically exist?        |
-| Source      | What storage system/device/service contains that copy? |
+| Entity | Question |
+| --- | --- |
+| Photo | What real-world capture is this? |
+| MediaFile | What media representation belongs to that capture? |
+| FileVersion | What exact bytes constitute this representation? |
+| SourceCopy | Where does that exact version physically exist? |
+| Source | What storage system/device/service contains that copy? |
+
+---
 
 # 3. Photo
 
@@ -204,6 +208,8 @@ These values represent Bilder's current interpretation.
 
 The evidence supporting them is stored separately as observations.
 
+---
+
 # 4. MediaFile
 
 ## Purpose
@@ -245,6 +251,8 @@ same file, multiple physical copies
 ```
 
 These are fundamentally different relationships.
+
+---
 
 # 5. MediaFileRelationship
 
@@ -304,6 +312,8 @@ HEIC ──alternate── JPG
 
 This relationship is normally symmetric.
 
+---
+
 # 6. FileVersion
 
 ## Purpose
@@ -353,10 +363,11 @@ same FileVersion
 
 They are not two FileVersions merely because they are on different sources.
 
+---
+
 # 7. Source
 
 ## Purpose
-
 
 A Source represents a persistent place, system, device, or service where files can exist.
 
@@ -371,6 +382,7 @@ Apple Photos
 Camera SD Card
 Phone Backup
 ```
+
 A Source is not simply a mount path.
 
 ## Source Identity
@@ -404,6 +416,8 @@ A Source may remain in the database after it becomes:
 - replaced
 
 Historical sources should not disappear merely because they are no longer connected.
+
+---
 
 # 8. SourceCopy
 
@@ -458,6 +472,8 @@ If a physical copy is deleted, its historical SourceCopy should remain represent
 
 This is important for auditability and recovery.
 
+---
+
 # 9. FileObservation
 
 ## Purpose
@@ -481,7 +497,7 @@ A conceptual observation may include:
 - observation time
 - classification result
 
-##Why Observations Exist
+## Why Observations Exist
 
 They allow Bilder to distinguish:
 
@@ -494,12 +510,16 @@ from:
 ```text
 source has not been scanned recently
 ```
+
 and:
 
 ```text
 scanner encountered an error
 ```
+
 They also preserve the history of discovery.
+
+---
 
 # 10. ScanSession
 
@@ -546,6 +566,8 @@ Possible values:
 
 Deep analysis may also be represented as separate jobs rather than a ScanSession.
 
+---
+
 # 11. Preservation State
 
 Bilder needs to determine whether a discovered file is safely represented on the NAS.
@@ -578,6 +600,8 @@ explicit documented deletion decision exists
 
 This rule is about preserving discovered files before optimization.
 
+---
+
 # 12. Deletion and Quarantine
 
 ## Quarantine
@@ -588,6 +612,7 @@ It allows the user to reduce the archive without immediately destroying data.
 
 Conceptually:
 
+```text
 present
   ↓
 user approves reduction
@@ -597,46 +622,53 @@ quarantine
 waiting period
   ↓
 permanent deletion
+```
 
 A quarantined file remains catalogued.
 
-Explicit Deletion
+## Explicit Deletion
 
 Permanent deletion should create a historical record containing information such as:
 
-FileVersion
-SourceCopy
-deletion time
-reason
-decision
-authorization
-verification
+- FileVersion
+- SourceCopy
+- deletion time
+- reason
+- decision
+- authorization
+- verification
 
 This allows future discovery of the same file to be recognized as:
 
+```text
 previously deliberately deleted
+```
 
 rather than automatically treated as a new import.
+
+---
 
 # 13. Hashes and Fingerprints
 
 Bilder may maintain several forms of identity information.
 
-SHA-256
+## SHA-256
 
 Exact byte identity.
 
+```text
 file_sha256
+```
 
 Changes whenever any byte changes.
 
-Content Hash
+## Content Hash
 
 A format-aware identity intended to represent encoded media content while ignoring metadata where practical.
 
 The implementation must be format-specific.
 
-Pixel Hash
+## Pixel Hash
 
 A hash of decoded and normalized image pixels.
 
@@ -644,7 +676,7 @@ Useful for detecting visually identical images despite some encoding differences
 
 RAW formats require special handling because rendering can vary.
 
-pHash
+## pHash
 
 Perceptual similarity.
 
@@ -652,41 +684,52 @@ Useful for finding possible near-duplicates.
 
 A pHash similarity does not prove:
 
+```text
 same photograph
+```
 
 It only identifies a candidate relationship.
 
+---
+
 # 14. MetadataObservation
-Purpose
+
+## Purpose
 
 A MetadataObservation records a value found or generated by a particular source at a particular time.
 
 Conceptually:
 
+```text
 field
 value
 source
 observed_at
 origin
 confidence
-Origins
+```
+
+## Origins
 
 Possible origins include:
 
-embedded
-filesystem
-external_source
-derived
-user
+- `embedded`
+- `filesystem`
+- `external_source`
+- `derived`
+- `user`
 
 Examples:
 
+```text
 EXIF DateTimeOriginal
 filesystem modified time
 Apple Photos capture date
 user-entered description
 AI-inferred location
-Historical Retention
+```
+
+## Historical Retention
 
 Metadata observations should generally be retained.
 
@@ -694,13 +737,17 @@ This allows Bilder to identify systematic problems.
 
 For example:
 
+```text
 4132 files
 EXIF time
 +7 hours from expected time
+```
 
 may reveal a timezone error.
 
 If only the corrected value were stored, the original evidence would be lost.
+
+---
 
 # 15. Canonical Metadata
 
@@ -708,6 +755,7 @@ The Photo contains Bilder's current canonical interpretation.
 
 Examples:
 
+```text
 capture_time
 capture_timezone
 capture_time_precision
@@ -715,21 +763,24 @@ location
 camera
 lens
 description
+```
 
 Canonical metadata is not necessarily identical to any one embedded metadata value.
 
 It is the result of the metadata resolution process.
 
-Canonical Status
+## Canonical Status
 
 Possible statuses:
 
-confirmed
-automatic
-proposed
-conflicted
-unknown
-rejected
+- `confirmed`
+- `automatic`
+- `proposed`
+- `conflicted`
+- `unknown`
+- `rejected`
+
+---
 
 # 16. Metadata Resolution
 
@@ -737,27 +788,33 @@ Resolution is field-specific.
 
 There is deliberately no global rule such as:
 
+```text
 EXIF always wins
+```
 
 or:
 
+```text
 newest observation wins
+```
 
 Different fields have different evidence quality.
 
 Example:
 
-Field	Strong evidence	Contextual evidence
-Capture time	EXIF DateTimeOriginal	filesystem time, folder
-Camera	EXIF Make/Model	external source
-GPS	embedded GPS	neighboring photos
-Description	user assertion	embedded caption
-Person	user decision	recognition model
-Confidence
+| Field | Strong evidence | Contextual evidence |
+| --- | --- | --- |
+| Capture time | EXIF DateTimeOriginal | filesystem time, folder |
+| Camera | EXIF Make/Model | external source |
+| GPS | embedded GPS | neighboring photos |
+| Description | user assertion | embedded caption |
+| Person | user decision | recognition model |
+
+## Confidence
 
 Confidence expresses how strongly the evidence supports a value.
 
-Authority
+## Authority
 
 Authority expresses who or what is allowed to establish the value.
 
@@ -767,99 +824,116 @@ An AI result can have high confidence but lower authority.
 
 These concepts should remain separate.
 
+---
+
 # 17. Time Model
 
 Capture time and filesystem timestamps are separate.
 
-Capture Time
+## Capture Time
 
 Describes when the photograph was taken.
 
 It should support:
 
-date/time
-timezone
-precision
-Precision
+- date/time
+- timezone
+- precision
+
+## Precision
 
 Possible precision levels:
 
-exact
-minute
-day
-month
-year
-unknown
+- `exact`
+- `minute`
+- `day`
+- `month`
+- `year`
+- `unknown`
 
 Bilder should not invent precision.
 
 If only:
 
+```text
 2013-07-14
+```
 
 is known, it should not silently become:
 
+```text
 2013-07-14 00:00:00
+```
 
 as though midnight were known.
 
-Filesystem Times
+## Filesystem Times
 
 Filesystem timestamps belong to the file/version/source context.
 
 Examples:
 
-created
-modified
-imported
+- created
+- modified
+- imported
 
 They are evidence but are not automatically the capture time.
+
+---
 
 # 18. Location
 
 Location should distinguish raw geographic evidence from human-readable interpretation.
 
-Coordinate
+## Coordinate
 
 May contain:
 
-latitude
-longitude
-coordinate precision
-source
-confidence
-Human Location
+- latitude
+- longitude
+- coordinate precision
+- source
+- confidence
+
+## Human Location
 
 May contain:
 
-country
-region
-city
-neighborhood
-street
-building / POI
-Precision
+- country
+- region
+- city
+- neighborhood
+- street
+- building / POI
+
+## Precision
 
 Possible conceptual levels:
 
-exact coordinate
-building / POI
-street
-neighborhood
-city
-region
-country
-unknown
+- exact coordinate
+- building / POI
+- street
+- neighborhood
+- city
+- region
+- country
+- unknown
 
 An inferred city should not automatically become an exact coordinate.
 
 For example:
 
+```text
 Probably Paris
+```
 
 is different from:
 
+```text
 GPS: 48.8566, 2.3522
+```
+
+---
 
 # 19. Metadata Correction Proposals
 
@@ -867,6 +941,7 @@ A metadata correction should normally be represented as a Proposal before becomi
 
 Example:
 
+```text
 Folder: The_America_Trip
 
 Photos:
@@ -880,6 +955,7 @@ Strong matches:
 
 Conflicts:
 14
+```
 
 The UI may present this as one group operation.
 
@@ -887,11 +963,13 @@ The underlying data should remain individually auditable.
 
 A user can:
 
-approve all
-approve only matching items
-reject
-inspect conflicts
-edit individual values
+- approve all
+- approve only matching items
+- reject
+- inspect conflicts
+- edit individual values
+
+---
 
 # 20. FaceObservation
 
@@ -901,14 +979,16 @@ A FaceObservation represents one detected face in a media representation.
 
 Possible information includes:
 
-MediaFile/FileVersion analyzed
-bounding box
-detection confidence
-landmarks
-model/version
-analysis time
+- MediaFile/FileVersion analyzed
+- bounding box
+- detection confidence
+- landmarks
+- model/version
+- analysis time
 
 A FaceObservation is not a person identity.
+
+---
 
 # 21. FaceCluster
 
@@ -920,28 +1000,34 @@ Clusters should initially be anonymous.
 
 For example:
 
+```text
 FaceCluster 42
 ├── FaceObservation A
 ├── FaceObservation B
 ├── FaceObservation C
 └── FaceObservation D
+```
 
 The cluster does not need to be called:
 
+```text
 Anna
+```
 
 until the user establishes that identity.
 
-Cluster Changes
+## Cluster Changes
 
 Clusters should support historical handling of:
 
-split
-merge
-reassignment
-rejected membership
+- split
+- merge
+- reassignment
+- rejected membership
 
 This prevents destructive identity assumptions.
+
+---
 
 # 22. Person
 
@@ -949,12 +1035,14 @@ A Person represents a user-defined real-world identity.
 
 A Person may be linked to:
 
-one or more FaceClusters
-individual FaceObservations
-Photos
-identity decisions
+- one or more FaceClusters
+- individual FaceObservations
+- Photos
+- identity decisions
 
 A Person is not merely a tag.
+
+---
 
 # 23. IdentityProposal
 
@@ -962,15 +1050,19 @@ Recognition systems may produce proposals.
 
 Example:
 
+```text
 FaceCluster 42
 
 Anna      96%
 Maria     71%
 Unknown    4%
+```
 
 These values are machine evidence.
 
 They do not establish identity automatically.
+
+---
 
 # 24. IdentityDecision
 
@@ -978,17 +1070,19 @@ A user decision records acceptance or rejection of an identity proposal.
 
 Possible decisions include:
 
-confirm Anna
-reject Anna
-assign Maria
-mark unknown
-override cluster identity
-split cluster
-merge clusters
+- confirm Anna
+- reject Anna
+- assign Maria
+- mark unknown
+- override cluster identity
+- split cluster
+- merge clusters
 
 Historical decisions should remain available.
 
 This specifically prevents the system from developing irreversible behavior where a mistaken assignment cannot be undone.
+
+---
 
 # 25. Tag
 
@@ -996,29 +1090,33 @@ A Tag represents a structured characteristic or subject.
 
 Possible categories include:
 
-Person
-Place
-Event
-Subject
-Object
-Activity
-Organization
-Custom
+- Person
+- Place
+- Event
+- Subject
+- Object
+- Activity
+- Organization
+- Custom
 
 Tags should be separate entities rather than a comma-separated string.
 
-Tag Provenance
+## Tag Provenance
 
 A tag may originate from:
 
+```text
 embedded metadata
 user
 AI proposal
 external source
+```
 
 The origin matters.
 
 An imported keyword is not equivalent to a user-confirmed tag.
+
+---
 
 # 26. Collection
 
@@ -1026,40 +1124,47 @@ A Collection is a logical grouping of Photos.
 
 It answers:
 
+```text
 Why do I want these Photos grouped?
+```
 
 A Collection may have:
 
-name
-description
-date range
-location
-membership
+- name
+- description
+- date range
+- location
+- membership
 
 A Photo can belong to multiple Collections.
 
-Collections are independent of physical filesystem paths.
+Collections are independent of physical storage paths.
 
-Collection Membership
+## Collection Membership
 
 Membership should be explicit and persistent.
 
 It should not merely be a dynamically generated folder query.
 
+---
+
 # 27. Saved Search
 
 A Saved Search is different from a Collection.
 
+```text
 Collection
     = explicit membership
 
 Saved Search
     = persistent query
+```
 
 The result of a Saved Search may change as the catalogue changes.
 
 Examples:
 
+```text
 Photos missing from NAS
 
 Photos requiring time review
@@ -1069,6 +1174,9 @@ Previously deleted files found again
 Photos with conflicting GPS
 
 Files present only on old HDDs
+```
+
+---
 
 # 28. Search Model
 
@@ -1076,50 +1184,63 @@ Search primarily operates on Photos.
 
 This means:
 
+```text
 3 physical copies
+```
 
 normally produce:
 
+```text
 1 Photo search result
+```
 
 and:
 
+```text
 Live Photo still + MP4
+```
 
 normally produces:
 
+```text
 1 Photo result
-Search Dimensions
+```
+
+## Search Dimensions
 
 Search may eventually support:
 
-date/time
-location
-person
-tags
-description
-collection
-media type
-file format
-source
-file state
-preservation state
+- date/time
+- location
+- person
+- tags
+- description
+- collection
+- media type
+- file format
+- source
+- file state
+- preservation state
 
 Physical-layer search is also important.
 
 For example:
 
+```text
 All files on HDD Backup 2019
 that are not currently preserved on the NAS
+```
 
 The search model should be structured and reusable by:
 
-web UI
-API
-CLI
-future natural-language interface
+- web UI
+- API
+- CLI
+- future natural-language interface
 
 A future LLM should translate natural-language requests into structured search criteria rather than directly manipulating database queries.
+
+---
 
 # 29. Operation
 
@@ -1127,30 +1248,32 @@ An Operation represents an attempted action.
 
 Examples:
 
-preserve file to NAS
-move file
-rename file
-create quarantine copy
-restore file
-permanently delete file
-synchronize metadata
-apply timestamp correction
-update identity
+- preserve file to NAS
+- move file
+- rename file
+- create quarantine copy
+- restore file
+- permanently delete file
+- synchronize metadata
+- apply timestamp correction
+- update identity
 
 An Operation should eventually contain information such as:
 
-operation type
-target
-requested by
-requested at
-started at
-completed at
-status
-result
-verification
-error information
+- operation type
+- target
+- requested by
+- requested at
+- started at
+- completed at
+- status
+- result
+- verification
+- error information
 
 Operations should be resumable or reconcilable where practical.
+
+---
 
 # 30. Proposal
 
@@ -1158,19 +1281,20 @@ A Proposal represents a suggested change that has not yet been accepted.
 
 Examples:
 
-duplicate candidate
-near-duplicate candidate
-timestamp correction
-GPS correction
-face identity
-metadata synchronization
-quarantine candidate
-collection suggestion
+- duplicate candidate
+- near-duplicate candidate
+- timestamp correction
+- GPS correction
+- face identity
+- metadata synchronization
+- quarantine candidate
+- collection suggestion
 
 A Proposal is not an Operation.
 
 The distinction is:
 
+```text
 Proposal
     = Bilder recommends something
 
@@ -1179,6 +1303,9 @@ Decision
 
 Operation
     = system performs the action
+```
+
+---
 
 # 31. Decision
 
@@ -1186,6 +1313,7 @@ A Decision records an explicit human decision.
 
 Examples:
 
+```text
 Keep file
 Delete file
 Restore file
@@ -1194,10 +1322,13 @@ Confirm person
 Reject person
 Approve timestamp correction
 Reject GPS proposal
+```
 
 Decisions should remain historically available.
 
 They should not be silently replaced merely because an algorithm is updated.
+
+---
 
 # 32. Audit / Provenance
 
@@ -1205,6 +1336,7 @@ Bilder should preserve enough provenance to explain important catalogue state.
 
 For a canonical value, it should eventually be possible to determine:
 
+```text
 Current value
     ↓
 Why was it selected?
@@ -1214,9 +1346,11 @@ Which observations supported it?
 Which proposal was involved?
     ↓
 Which decision established it?
+```
 
 For a file:
 
+```text
 FileVersion
     ↓
 Which scan discovered it?
@@ -1228,9 +1362,11 @@ Which path?
 When copied to NAS?
     ↓
 Which verification?
+```
 
 For deletion:
 
+```text
 FileVersion
     ↓
 Why was it deleted?
@@ -1240,11 +1376,15 @@ Which user decision?
 Which operation?
     ↓
 Was deletion verified?
+```
+
+---
 
 # 33. Relationships Overview
 
 The conceptual relationships are:
 
+```text
 Source
   │
   └── ScanSession
@@ -1256,16 +1396,20 @@ Source
                         └── MediaFile
                                 │
                                 └── Photo
+```
 
 Physical copies:
 
+```text
 FileVersion
    ├── SourceCopy ── Source
    ├── SourceCopy ── Source
    └── SourceCopy ── Source
+```
 
 Media relationships:
 
+```text
 Photo
 ├── MediaFile
 │     └── FileVersion
@@ -1274,32 +1418,40 @@ Photo
 │     └── FileVersion
 │
 └── MediaFileRelationship
+```
 
 Metadata:
 
+```text
 Photo
 ├── Canonical metadata
 └── MetadataObservations
 
 MediaFile / FileVersion
 └── File-level observations
+```
 
 Faces:
 
+```text
 Photo
 └── FaceObservation
       └── FaceCluster
             └── Person
+```
 
 Logical organization:
 
+```text
 Photo
 ├── Tags
 ├── Collections
 └── People / Location
+```
 
 Decision workflow:
 
+```text
 Observation
     ↓
 Analysis
@@ -1311,11 +1463,15 @@ Decision
 Operation
     ↓
 Verification
+```
+
+---
 
 # 34. File Discovery Lifecycle
 
 A newly discovered file should conceptually pass through this process:
 
+```text
 Physical file found
        ↓
 FileObservation created
@@ -1343,13 +1499,17 @@ Find existing SourceCopy?
        └───────────────┴───────┬────────┘
                                ↓
                            catalogue
+```
 
 Discovery itself does not modify the source.
+
+---
 
 # 35. Preservation Lifecycle
 
 The preservation lifecycle is:
 
+```text
 Discovered
     ↓
 Compare
@@ -1363,18 +1523,27 @@ Copy
 Verify
     ↓
 NAS SourceCopy present
+```
 
 The system should distinguish:
 
+```text
 copy attempted
+```
 
 from:
 
+```text
 copy verified
-36. Duplicate Lifecycle
+```
+
+---
+
+# 36. Duplicate Lifecycle
 
 Duplicate handling occurs after preservation.
 
+```text
 Preserve
    ↓
 Analyse
@@ -1390,72 +1559,100 @@ Quarantine if appropriate
 Waiting period
    ↓
 Permanent deletion if explicitly approved
+```
 
 There is deliberately no relationship:
 
+```text
 duplicate detected
         ↓
 delete
+```
+
+---
+
 # 37. Exact Duplicate Model
 
 If two physical files have the same SHA-256:
 
+```text
 File A SHA-256 = X
 File B SHA-256 = X
+```
 
 then:
 
+```text
 FileVersion X
 ├── SourceCopy A
 └── SourceCopy B
+```
 
 They are not two FileVersions.
 
 They are two physical copies.
 
+---
+
 # 38. Same Photo, Different Encoding
 
 Example:
 
+```text
 HEIC
 JPG
+```
 
 They may decode to the same or nearly the same visual content.
 
 The model should allow:
 
+```text
 Photo X
 ├── MediaFile HEIC
 └── MediaFile JPG
+```
 
 with:
 
+```text
 HEIC ──alternate/derived── JPG
+```
 
 depending on what is known.
 
 Bilder should not require exact proof of derivation before representing the possibility.
 
+---
+
 # 39. Same MediaFile, Different FileVersion
 
 Example:
 
+```text
 Original JPG
 SHA-256 = A
+```
 
 Metadata is changed:
 
+```text
 Modified JPG
 SHA-256 = B
+```
 
 The model can represent:
 
+```text
 Photo X
 └── MediaFile JPG
       ├── FileVersion A
       └── FileVersion B
+```
 
 The FileVersions are different byte states of the same logical representation.
+
+---
 
 # 40. Database Authority
 
@@ -1467,6 +1664,7 @@ Embedded metadata is evidence and a synchronization mechanism.
 
 This gives three different roles:
 
+```text
 Database
     = What Bilder believes
 
@@ -1475,8 +1673,11 @@ Filesystem
 
 Embedded metadata
     = What the file itself says
+```
 
 Disagreements between these layers should be visible rather than silently hidden.
+
+---
 
 # 41. Physical vs. Logical Organization
 
@@ -1484,14 +1685,17 @@ The data model must not encode the NAS directory structure as the logical organi
 
 For example:
 
+```text
 2026/
 └── 08-23_Concert/
     └── IMG_1234.HEIC
+```
 
 is physical context.
 
 The same Photo may logically have:
 
+```text
 Person:
 Anna
 
@@ -1505,127 +1709,152 @@ Music
 Collections:
 Summer 2026
 Concerts
+```
 
 The physical file should not need to be duplicated into those logical categories.
+
+---
 
 # 42. Important Invariants
 
 The implementation should preserve these invariants.
 
-Identity
+## Identity
 
 A Photo represents one real-world capture.
 
-Exact File Identity
+## Exact File Identity
 
 A FileVersion represents one exact byte sequence.
 
-Physical Copy
+## Physical Copy
 
 A SourceCopy represents one physical occurrence of a FileVersion.
 
-Exact Duplicate
+## Exact Duplicate
 
 Same SHA-256 means the same FileVersion.
 
-Preservation
+## Preservation
 
 Every discovered photographic file should exist at least once on the NAS unless explicitly deleted and documented.
 
-Discovery
+## Discovery
 
 Scanning does not silently modify sources.
 
-Deletion
+## Deletion
 
 Permanent deletion requires explicit authorization.
 
-History
+## History
 
 Important observations and decisions should not be silently overwritten.
 
-User Authority
+## User Authority
 
 User decisions override machine proposals.
 
-Logical Organization
+## Logical Organization
 
 Tags and Collections do not determine physical filesystem location.
 
-Search
+## Search
 
 Normal photo search returns logical Photos rather than duplicate physical copies.
+
+---
 
 # 43. Deferred Implementation Details
 
 The following should be designed after the conceptual model is agreed:
 
-SQLite table names
-exact columns
-primary key strategy
-UUID vs integer IDs
-foreign keys
-indexes
-enum implementation
-JSON usage
-migration strategy
-job queue implementation
-filesystem locking
-transaction boundaries
-thumbnail storage
-binary metadata storage
-retention policy for observations
-API representation
-authentication implementation
+- SQLite table names
+- exact columns
+- primary key strategy
+- UUID vs integer IDs
+- foreign keys
+- indexes
+- enum implementation
+- JSON usage
+- migration strategy
+- job queue implementation
+- filesystem locking
+- transaction boundaries
+- thumbnail storage
+- binary metadata storage
+- retention policy for observations
+- API representation
+- authentication implementation
 
 These are implementation decisions, not part of the conceptual identity model.
+
+---
 
 # 44. Initial Entity Checklist
 
 The initial conceptual entity set is:
 
-Core
-Photo
-MediaFile
-MediaFileRelationship
-FileVersion
-Source
-SourceCopy
-Discovery
-ScanSession
-FileObservation
-Metadata
-MetadataObservation
-canonical Photo metadata
-Location
-canonical Location
-location observations/proposals
-Faces
-FaceObservation
-FaceCluster
-Person
-IdentityProposal
-IdentityDecision
-Organization
-Tag
-Photo–Tag relationship
-Collection
-Collection membership
-SavedSearch
-Operations
-Proposal
-Decision
-Operation
-operation results / verification
-History
-audit/provenance information
+### Core
+
+- `Photo`
+- `MediaFile`
+- `MediaFileRelationship`
+- `FileVersion`
+- `Source`
+- `SourceCopy`
+
+### Discovery
+
+- `ScanSession`
+- `FileObservation`
+
+### Metadata
+
+- `MetadataObservation`
+- canonical Photo metadata
+
+### Location
+
+- canonical Location
+- location observations/proposals
+
+### Faces
+
+- `FaceObservation`
+- `FaceCluster`
+- `Person`
+- `IdentityProposal`
+- `IdentityDecision`
+
+### Organization
+
+- `Tag`
+- Photo–Tag relationship
+- `Collection`
+- Collection membership
+- `SavedSearch`
+
+### Operations
+
+- `Proposal`
+- `Decision`
+- `Operation`
+- operation results / verification
+
+### History
+
+- audit/provenance information
 
 This list is conceptual. Some entities may later be represented as relationships, state tables, or other implementation structures rather than literal SQLite tables.
+
+---
 
 # 45. Intended Evolution
 
 The data model should evolve in this order:
 
+```text
 Conceptual entities
        ↓
 Relationships
@@ -1641,15 +1870,19 @@ Application services
 API
        ↓
 Web UI
+```
 
 The database schema should not be designed first and then used to define the concepts.
 
 The concepts should define the schema.
 
+---
+
 # 46. Summary
 
 The central model is:
 
+```text
                          Source
                            │
                            │
@@ -1670,9 +1903,11 @@ The central model is:
               FaceCluster
                    │
                 Person
+```
 
 With discovery:
 
+```text
 Source
   ↓
 ScanSession
@@ -1684,9 +1919,11 @@ FileVersion
 MediaFile
   ↓
 Photo
+```
 
 And controlled change:
 
+```text
 Observation
     ↓
 Analysis
@@ -1698,39 +1935,10 @@ User Decision
 Operation
     ↓
 Verification
+```
 
 The most important architectural distinction is:
 
-A photograph, a representation of that photograph, the exact bytes of that representation, and a physical copy of those bytes are four different things.
+> **A photograph, a representation of that photograph, the exact bytes of that representation, and a physical copy of those bytes are four different things.**
 
 This separation allows Bilder to preserve the archive first, understand duplicates later, retain historical evidence, support multiple sources, and make potentially destructive changes reversible and auditable.
-
-
-These two files are deliberately **conceptual rather than schema-heavy**. I think that's the right point to stop before we start designing SQLite tables—especially because the `Photo → MediaFile → FileVersion → SourceCopy → Source` distinction is now the foundation everything else can build on.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
