@@ -18,6 +18,7 @@ from .database import (
     get_or_create_file_version,
     get_or_create_source_copy,
     initialize_database,
+    reconcile_source_copies,
 )
 
 
@@ -149,6 +150,12 @@ def scan(
                 status="failed",
             )
             raise
+
+        reconcile_source_copies(
+            connection,
+            scan_session_id=scan_session_id,
+            source_id=source_id,
+        )
 
         finish_scan_session(
             connection,

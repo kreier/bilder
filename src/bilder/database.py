@@ -351,6 +351,34 @@ def get_or_create_source_copy(
     connection.commit()
     return int(cursor.lastrowid)
 
+def reconcile_source_copies(
+    connection: sqlite3.Connection,
+    scan_session_id: int,
+    source_id: int,
+) -> None:
+    """Mark SourceCopies missing if they were not observed in a completed scan."""
+
+    connection.execute(
+        """
+        UPDATE source_copy
+        SET state = 'missing'
+        WHERE source_id = ?
+          AND state = 'present'
+          AND path NOT IN (
+              SELECT path
+              FROM file_observation
+              WHERE scan_session_id = ?
+                AND source_id = ?
+          )
+        """,
+        (
+            source_id,
+            scan_session_id,
+            source_id,
+        ),
+    )
+
+    connection.commit()
 
 def create_file_observation(
     connection: sqlite3.Connection,

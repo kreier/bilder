@@ -226,3 +226,281 @@ def test_same_file_version_at_two_paths_creates_two_source_copies(tmp_path):
 
     finally:
         connection.close()
+
+def test_scan_marks_deleted_file_missing_and_restores_it(tmp_path):
+    """A deleted file becomes missing and can later return as present."""
+
+    source = tmp_path / "source"
+    source.mkdir()
+
+    test_file = source / "photo.jpg"
+    test_file.write_bytes(b"photo data")
+
+    database_path = tmp_path / "bilder.db"
+
+    # First scan: the file is present.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                file_version_id,
+                state
+            FROM source_copy
+            WHERE path = ?
+            """,
+            ("photo.jpg",),
+        ).fetchone()
+
+        original_file_version_id = row["file_version_id"]
+
+        assert row["state"] == "present"
+
+    finally:
+        connection.close()
+
+    # Delete the file.
+    test_file.unlink()
+
+    # Second scan: the file is missing.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                file_version_id,
+                state
+            FROM source_copy
+            WHERE path = ?
+            """,
+            ("photo.jpg",),
+        ).fetchone()
+
+        assert row["file_version_id"] == original_file_version_id
+        assert row["state"] == "missing"
+
+    finally:
+        connection.close()
+
+    # Restore the exact same bytes.
+    test_file.write_bytes(b"photo data")
+
+    # Third scan: the file is present again.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                file_version_id,
+                state
+            FROM source_copy
+            WHERE path = ?
+            """,
+            ("photo.jpg",),
+        ).fetchone()
+
+        assert row["file_version_id"] == original_file_version_id
+        assert row["state"] == "present"
+
+        # The three scans should produce two observations:
+        # one when present initially and one after restoration.
+        assert count_rows(
+            connection,
+            "file_observation",
+        ) == 2
+
+        # The restored file must not create a new FileVersion.
+        assert count_rows(
+            connection,
+            "file_version",
+        ) == 1
+
+    finally:
+        connection.close()
+
+def test_failed_scan_does_not_mark_existing_files_missing(
+    tmp_path,
+    monkeypatch,
+):
+    """A failed scan must not reconcile existing SourceCopies as missing."""
+
+    source = tmp_path / "source"
+    source.mkdir()
+
+    existing_file = source / "existing.jpg"
+    existing_file.write_bytes(b"existing photo")
+
+    database_path = tmp_path / "bilder.db"
+
+    # First scan: the file is present.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    # Make the scanner fail during the second scan.
+    def failing_sha256_file(path):
+        raise RuntimeError("simulated scan failure")
+
+    monkeypatch.setattr(
+        "bilder.scanner.sha256_file",
+        failing_sha256_file,
+    )
+
+    try:
+        scan(
+            database_path=database_path,
+            source_path=source,
+            source_name="Test source",
+        )
+    except RuntimeError as exc:
+        assert str(exc) == "simulated scan failure"
+    else:
+        raise AssertionError("Expected scan to fail")
+
+    connection = connect(database_path)
+
+    try:
+        # The failed scan must not have marked the existing file missing.
+        row = connection.execute(
+            """
+            SELECT state
+            FROM source_copy
+            WHERE path = ?
+            """,
+            ("existing.jpg",),
+        ).fetchone()
+
+        assert row["state"] == "present"
+
+        # The failed scan itself should be recorded as failed.
+        row = connection.execute(
+            """
+            SELECT status
+            FROM scan_session
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        assert row["status"] == "failed"
+
+    finally:
+        connection.close()
+
+def test_scan_detects_moved_file_as_missing_and_new_copy(
+    tmp_path,
+):
+    """A moved file keeps its FileVersion across the old and new paths."""
+
+    source = tmp_path / "source"
+    source.mkdir()
+
+    old_file = source / "old" / "photo.jpg"
+    old_file.parent.mkdir()
+
+    new_file = source / "new" / "photo.jpg"
+    new_file.parent.mkdir()
+
+    old_file.write_bytes(b"photo data")
+
+    database_path = tmp_path / "bilder.db"
+
+    # First scan: file exists at the old path.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        row = connection.execute(
+            """
+            SELECT
+                file_version_id
+            FROM source_copy
+            WHERE path = ?
+            """,
+            ("old/photo.jpg",),
+        ).fetchone()
+
+        original_file_version_id = row["file_version_id"]
+
+    finally:
+        connection.close()
+
+    # Move the file without changing its contents.
+    old_file.rename(new_file)
+
+    # Second scan: old path disappears, new path appears.
+    scan(
+        database_path=database_path,
+        source_path=source,
+        source_name="Test source",
+    )
+
+    connection = connect(database_path)
+
+    try:
+        rows = connection.execute(
+            """
+            SELECT
+                path,
+                file_version_id,
+                state
+            FROM source_copy
+            WHERE file_version_id = ?
+            ORDER BY path
+            """,
+            (original_file_version_id,),
+        ).fetchall()
+
+        assert len(rows) == 2
+
+        assert rows[0]["path"] == "new/photo.jpg"
+        assert rows[0]["file_version_id"] == original_file_version_id
+        assert rows[0]["state"] == "present"
+
+        assert rows[1]["path"] == "old/photo.jpg"
+        assert rows[1]["file_version_id"] == original_file_version_id
+        assert rows[1]["state"] == "missing"
+
+        # Two scans, one observation for each location.
+        assert count_rows(
+            connection,
+            "file_observation",
+        ) == 2
+
+        # The move did not create a new FileVersion.
+        assert count_rows(
+            connection,
+            "file_version",
+        ) == 1
+
+    finally:
+        connection.close()
+
