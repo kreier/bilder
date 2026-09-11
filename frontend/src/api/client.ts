@@ -1,5 +1,12 @@
+import { getWasmHealth, getWasmOverview } from "./wasm";
+
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+
+// In production on GitHub Pages (when no custom backend URL is specified) or if explicitly requested, default to WASM
+const FORCE_WASM =
+    import.meta.env.VITE_FORCE_WASM === "true" ||
+    (import.meta.env.PROD && !import.meta.env.VITE_API_BASE_URL);
 
 export interface LatestScan {
     id: number;
@@ -35,13 +42,38 @@ async function request<T>(path: string): Promise<T> {
     return response.json() as Promise<T>;
 }
 
-export function getOverview(): Promise<Overview> {
-    return request<Overview>("/api/overview");
+export async function getOverview(): Promise<Overview> {
+    if (FORCE_WASM) {
+        return getWasmOverview();
+    }
+
+    try {
+        return await request<Overview>("/api/overview");
+    } catch (err) {
+        console.warn(
+            "FastAPI backend not reachable, falling back to in-browser SQLite WASM:",
+            err,
+        );
+        return getWasmOverview();
+    }
 }
 
-export function getHealth(): Promise<{
+export async function getHealth(): Promise<{
     status: string;
     application: string;
+    mode?: string;
 }> {
-    return request("/api/health");
+    if (FORCE_WASM) {
+        return getWasmHealth();
+    }
+
+    try {
+        return await request("/api/health");
+    } catch (err) {
+        console.warn(
+            "FastAPI backend not reachable, falling back to in-browser SQLite WASM:",
+            err,
+        );
+        return getWasmHealth();
+    }
 }

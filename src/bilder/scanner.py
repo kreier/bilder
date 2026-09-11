@@ -22,7 +22,7 @@ from .database import (
 )
 
 
-SCANNER_VERSION = "0.1.0"
+SCANNER_VERSION = "0.2.0"
 
 
 def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:

@@ -18,7 +18,7 @@ DATABASE_PATH = Path(
 
 app = FastAPI(
     title="Bilder API",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
