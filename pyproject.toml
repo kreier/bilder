@@ -7,6 +7,10 @@ name = "bilder"
 version = "0.1.0"
 description = "Preservation-first photo catalogue"
 requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
