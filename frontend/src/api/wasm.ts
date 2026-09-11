@@ -1,4 +1,5 @@
 import initSqlJs, { type Database } from "sql.js";
+import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import type { LatestScan, Overview } from "./client";
 
 let dbInstance: Database | null = null;
@@ -17,23 +18,32 @@ export async function getWasmDatabase(): Promise<Database> {
   }
 
   initPromise = (async () => {
+    // 1. Fetch WASM binary directly so we get explicit error reporting if it fails
+    const wasmResponse = await fetch(sqlWasmUrl);
+    if (!wasmResponse.ok) {
+      throw new Error(
+        `Failed to load sql-wasm.wasm from ${sqlWasmUrl} (${wasmResponse.status} ${wasmResponse.statusText})`
+      );
+    }
+    const wasmBinary = await wasmResponse.arrayBuffer();
+
+    // 2. Initialize SQL.js with the preloaded binary
+    const SQL = await initSqlJs({ wasmBinary });
+
+    // 3. Fetch the database binary
     const baseUrl = import.meta.env.BASE_URL.endsWith("/")
       ? import.meta.env.BASE_URL
       : `${import.meta.env.BASE_URL}/`;
 
-    // 1. Initialize SQL.js engine with local WASM binary
-    const SQL = await initSqlJs({
-      locateFile: (file) => `${baseUrl}${file}`,
-    });
-
-    // 2. Fetch the database binary
     const dbUrl = `${baseUrl}bilder.db`;
-    const response = await fetch(dbUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to load database from ${dbUrl}: ${response.status} ${response.statusText}`);
+    const dbResponse = await fetch(dbUrl);
+    if (!dbResponse.ok) {
+      throw new Error(
+        `Failed to load database from ${dbUrl} (${dbResponse.status} ${dbResponse.statusText})`
+      );
     }
 
-    const buffer = await response.arrayBuffer();
+    const buffer = await dbResponse.arrayBuffer();
     const db = new SQL.Database(new Uint8Array(buffer));
     dbInstance = db;
     return db;
