@@ -1,6 +1,9 @@
 # Synology Diskstation
 .DS_Store
 
+# Windows Alternate Data Streams (WSL)
+*:Zone.Identifier
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
