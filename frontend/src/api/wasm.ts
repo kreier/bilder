@@ -35,8 +35,8 @@ export async function getWasmDatabase(): Promise<Database> {
       ? import.meta.env.BASE_URL
       : `${import.meta.env.BASE_URL}/`;
 
-    const dbUrl = `${baseUrl}bilder.db`;
-    const dbResponse = await fetch(dbUrl);
+    const dbUrl = `${baseUrl}bilder.db?t=${Date.now()}`;
+    const dbResponse = await fetch(dbUrl, { cache: "no-cache" });
     if (!dbResponse.ok) {
       throw new Error(
         `Failed to load database from ${dbUrl} (${dbResponse.status} ${dbResponse.statusText})`
